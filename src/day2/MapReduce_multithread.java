@@ -107,7 +107,7 @@ public class MapReduce_multithread {
     public static void main(String[] args) throws ExecutionException, InterruptedException {
         long startTime = System.currentTimeMillis();
 
-        MyThread myThread = new MyThread(4, "C:\\Users\\Qingfo\\IdeaProjects\\HIT\\src\\day2\\hamlet.txt");
+        MyThread myThread = new MyThread(4, "D:\\hamlet.txt");
         List<List> splitLists = myThread.getFile();
         myThread.createthread(splitLists);
 
