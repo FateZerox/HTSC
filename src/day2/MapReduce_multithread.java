@@ -1,120 +1,128 @@
 package day2;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.io.*;
 import java.util.*;
-import java.util.concurrent.ExecutionException;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 /**
- * <p>multithreading mapreduce </p>
+ * 多线程版MapReduce
  *
- **/
-
-
-
+ * */
 public class MapReduce_multithread {
-    public static class Tuple<String, Integer> {
-        public final String key;
-        public final Integer value;
 
-        public Tuple(String key, Integer value) {
-            this.key = key;
-            this.value = value;
-        }
+    public void splitter() {
+        try {
+            String path = MapReduce_multithread.class.getResource("").getPath();
+            File file = new File(path + "/hamlet.txt");
+            FileReader fr = new FileReader(file);
 
-        @Override
-        public java.lang.String toString() {
-            return key + "," + value;
-        }
-    }
+            //获取行数
+            LineNumberReader reader = new LineNumberReader(fr);
+            reader.skip(Long.MAX_VALUE);
+            int lines = reader.getLineNumber();
+            reader.close();
 
-    public List readFromFile(String fileName) {
-        List<String> list = new ArrayList<>();
-        try (Stream<String> stream = Files.lines(Paths.get(fileName))) {
-            //按行处理
-            list = stream
-                    .map(s -> s.replaceAll("[\\pP\\p{Punct}]", " "))
-                    .map(String::toLowerCase)
-                    .collect(Collectors.toList());
+            BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(file)));
 
-        } catch (IOException e) {
+            StringBuilder sBuilder = new StringBuilder();
+            String line;
+            int count = 0;
+            while((line = br.readLine()) != null) {
+                line = line.replaceAll("[\\pP+~$`^=|<>～｀＄＾＋＝｜＜＞￥×]", " ").toLowerCase();
+                sBuilder.append(line).append(" ");
+                count++;
+                if (count == lines / MAPPER_NUM + 1) {
+                    lineStrings.put(sBuilder.toString());
+                    count = 0;
+                    sBuilder = new StringBuilder();
+                }
+            }
+            if (count != 0) {
+                lineStrings.put(sBuilder.toString());
+            }
+        } catch (IOException | InterruptedException e) {
             e.printStackTrace();
         }
-        return list;
     }
 
-    public List<List> splitting(int threadNum, List list) {
-        List<List> splitLists = Collections.synchronizedList(new ArrayList<>());
-        int left = 0;
-        int right = list.size() / threadNum;
-        if (threadNum > 1) {
-            for (int i = 0; i < threadNum - 1; i++) {
-                splitLists.add(list.subList(left, right));
-                left = right ;
-                right = left + list.size() / threadNum;
-            }
+    public void initMapJob() {
+        for (int i = 0; i < MAPPER_NUM; i++) {
+            Thread t = new Thread(new Mapper(lineStrings, spills, mapJobLatch));
+            t.start();
         }
-        splitLists.add(list.subList(left, list.size()));
-        return splitLists;
     }
 
-    public List<Tuple> mapping(List list) {
-        List<Tuple> tuples = Collections.synchronizedList(new ArrayList<>());
-        for (int i = 0; i < list.size(); i++) {
-            String[] s = list.get(i).toString().split(" ");
-            for (int j = 0; j < s.length; j++) {
-                Tuple tuple = new Tuple(s[j], 1);
-                tuples.add(tuple);
-            }
+    public void initReduceJob() {
+        for (int i = 0; i < REDUCER_NUM; i++) {
+            Thread t = new Thread(new Reducer(shuffles, results, reduceJobLatch));
+            t.start();
         }
-        return tuples;
     }
 
-    public Map<String, ArrayList<Integer>> shuffling(List<Tuple> tuples) {
+    public void start() throws InterruptedException {
+        splitter();
+        mapJobLatch.await();
+        shuffle();
+        reduceJobLatch.await();
+    }
 
-        Map<String, ArrayList<Integer>> listMap = Collections.synchronizedMap(new HashMap<>());
-        for (int i = 0; i < tuples.size(); i++) {
-            if (listMap.containsKey(tuples.get(i).key)) {
-                listMap.get(tuples.get(i).key).add((Integer) tuples.get(i).value);
+    public void shuffle() {
+        spills.forEach(s -> {
+            if (merge.containsKey(s.getA())) {
+                Tuple<String, List<Long>> m = merge.get(s.getA());
+                shuffle(s, m);
             } else {
-                ArrayList<Integer> temp = new ArrayList<>();
-                temp.add((Integer) tuples.get(i).value);
-                listMap.put(String.valueOf(tuples.get(i).key), temp);
+                Tuple<String, List<Long>> m = new Tuple<>(s.getA(), new ArrayList<>());
+                shuffle(s, m);
+                merge.put(s.getA(), m);
             }
+        });
+        Map<Integer, List<Tuple<String, List<Long>>>> groups = merge.values()
+                .stream()
+                .collect(Collectors.groupingBy(t -> Math.abs(t.getA().hashCode()) % REDUCER_NUM));
+        groups.values().forEach(e -> {
+                    try {
+                        shuffles.put(e);
+                    } catch (InterruptedException ignored) {
 
-        }
-        return listMap;
+                    }
+                });
     }
 
-    public List<Tuple> reducing(Map<String, ArrayList<Integer>> listHashMap) {
-        List<Tuple> tuples = Collections.synchronizedList(new ArrayList<>());
-        for (String s : listHashMap.keySet()) {
-            tuples.add(new Tuple(s, listHashMap.get(s).size()));
-        }
-        return tuples;
+    public void print() {
+        results.forEach(r -> System.out.println(r.getA() + " : " + r.getB()));
     }
 
-    public void printResult(List<Tuple> results) {
-
-        for (int i = 0; i < results.size(); i++) {
-            System.out.println(results.get(i).toString());
+    public static void shuffle(Tuple<String, Long> input, Tuple<String, List<Long>> collector) {
+        if (input.getA().equals(collector.getA())) {
+            collector.getB().add(input.getB());
         }
     }
 
-    public static void main(String[] args) throws ExecutionException, InterruptedException {
+
+    public static final int MAPPER_NUM = 6;
+    public static final int REDUCER_NUM = 6;
+
+    CountDownLatch mapJobLatch = new CountDownLatch(MAPPER_NUM);
+    CountDownLatch reduceJobLatch = new CountDownLatch(REDUCER_NUM);
+
+    BlockingQueue<String> lineStrings = new LinkedBlockingQueue<>();
+    List<Tuple<String, Long>> spills = Collections.synchronizedList(new ArrayList<>());
+    Map<String, Tuple<String, List<Long>>> merge = new HashMap<>();
+    BlockingQueue<List<Tuple<String, List<Long>>>> shuffles = new LinkedBlockingQueue<>();
+    List<Tuple<String, Long>> results = Collections.synchronizedList(new ArrayList<>());
+
+    public static void main(String[] args) throws InterruptedException {
         long startTime = System.currentTimeMillis();
-
-        MyThread myThread = new MyThread(4, "D:\\hamlet.txt");
-        List<List> splitLists = myThread.getFile();
-        myThread.createthread(splitLists);
-
+        MapReduce_multithread mapReduce = new MapReduce_multithread();
+        mapReduce.initMapJob();
+        mapReduce.initReduceJob();
+        mapReduce.start();
+        mapReduce.print();
         long endTime = System.currentTimeMillis();
         System.out.println("消耗时间: " + (endTime - startTime) +  "ms");
     }
 }
-
-
-
