@@ -1,5 +1,6 @@
-package day4;
+package day4.Test;
 
+import day4.CoffeeShop.*;
 import day4.Enum.Milk;
 import day4.Enum.Size;
 import day4.Enum.Temperature;
@@ -138,7 +139,11 @@ public class CoffeeOrderTest {
             }
         }
 
-        System.out.println(coffee.getSize()+" "+coffee.getTemperature()+" "+coffee.getMilk()+" "+coffee.getDescription()+ " 价格是："+ coffee.getPrice());
+        System.out.println(coffee.getSize()+" "
+                + coffee.getTemperature()+" "
+                + coffee.getMilk()+" "
+                + coffee.getDescription()
+                + " 价格是："+ coffee.getPrice());
     }
 
 }

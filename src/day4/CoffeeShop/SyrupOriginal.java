@@ -1,20 +1,20 @@
-package day4;
-
+package day4.CoffeeShop;
 
 import day4.Enum.Milk;
 import day4.Enum.Size;
 import day4.Enum.Temperature;
 
-public class SauceCaramel extends Decorator{
+public class SyrupOriginal extends Decorator{
+
     Coffee coffee;
 
-    public SauceCaramel(Coffee coffee) {
+    public SyrupOriginal(Coffee coffee) {
         this.coffee = coffee;
     }
 
     @Override
     public String getDescription() {
-        return this.coffee.getDescription() + ",焦糖风味酱";
+        return this.coffee.getDescription() + ",原味糖浆";
     }
 
     @Override
@@ -34,6 +34,7 @@ public class SauceCaramel extends Decorator{
 
     @Override
     public double getPrice() {
-        return this.coffee.getPrice() + 4;
+        return this.coffee.getPrice() + 3;
     }
+
 }

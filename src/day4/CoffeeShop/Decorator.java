@@ -1,4 +1,4 @@
-package day4;
+package day4.CoffeeShop;
 
 /**
  *    抽象装饰者类，所有的具体装饰者都必须继承这个类

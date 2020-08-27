@@ -1,4 +1,4 @@
-package day4;
+package day4.CoffeeShop;
 
 import day4.Enum.Milk;
 import day4.Enum.Size;

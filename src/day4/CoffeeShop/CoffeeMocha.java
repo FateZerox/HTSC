@@ -1,6 +1,4 @@
-package day4;
-
-import day4.Enum.Size;
+package day4.CoffeeShop;
 
 /**
  *    具体构件类
