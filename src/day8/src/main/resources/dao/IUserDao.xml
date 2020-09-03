@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="dao.IUserDao">
+    <!-- 配置查询所有操作 -->
+    <select id="findAll" resultMap="userMap">
+        select u.*,acc.id accid,acc.uid,acc.money FROM user u LEFT JOIN account
+        acc ON u.id = acc.uid
+    </select>
+
+    <select id="findById" resultMap="userMap" parameterType="int">
+        select * from user where id = #{uid}
+    </select>
+
+    <insert id="saveUser" parameterType="domain.User" useGeneratedKeys="true" keyProperty="userId">
+        insert into user(username,birthday,sex,address) values(#{userName},#{userBirthday},#{userSex},#{userAddress})
+    </insert>
+
+    <update id="updateUser" parameterType="domain.User">
+        update user set username=#{userName},birthday=#{userBirthday},sex=#{userSex},address=#{userAddress} where id=#{userId}
+    </update>
+
+    <delete id="deleteUser" parameterType="int">
+        delete from user where id =#{userId}
+    </delete>
+
+    <select id="findByName" resultMap="userMap" parameterType="String">
+        select * from user where username like #{username}
+    </select>
+
+    <select id="findByNameNew" resultMap="userMap" parameterType="String">
+        select * from user where username like '%${value}%'
+    </select>
+
+    <select id="count" resultType="int">
+        select count(1) from user
+    </select>
+
+    <select id="findByVo" resultMap="userMap"
+            parameterType="domain.QueryVo">
+        select * from user
+        <where>
+            <if test="username!=null and username!=''">
+                and username like #{username}
+            </if>
+            <if test="address != null">
+                and address like #{address}
+            </if>
+        </where>
+    </select>
+
+    <resultMap id="userMap" type="domain.User">
+        <id column="id" property="userId"></id>
+        <result column="username" property="userName"></result>
+        <result column="sex" property="userSex"></result>
+        <result column="address" property="userAddress"></result>
+        <result column="birthday" property="userBirthday"></result>
+
+        <collection property="accounts" ofType="domain.Account">
+            <id column="accid" property="id"/>
+            <result column="uid" property="uid"/>
+            <result column="money" property="money"/>
+        </collection>
+    </resultMap>
+
+    <select id="findInIds" resultMap="userMap" parameterType="domain.QueryVoIds">
+        select * from user
+        <where>
+            <if test="ids != null and ids.size()>0">
+                <foreach collection="ids" open="id in (" close=")" item="uid" separator=",">#{uid}</foreach>
+            </if>
+        </where>
+    </select>
+</mapper>
